@@ -1,0 +1,95 @@
+name: sample
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Select Git branch to checkout"
+        required: true
+        type: string
+        default: "feature/XYNI-241"
+      environment:
+        description: 'Select environment'
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+
+      version:
+        description: 'Select environment version'
+        required: true
+        type: choice
+        options:
+          - closed_beta_dev
+          - closed_beta_prod
+
+      stage:
+        description: 'Select Stage'
+        required: true
+        type: choice
+        options:
+          - stage1
+          - stage2
+jobs:  
+   terraform:
+    name: 'Terraform'
+    runs-on: ubuntu-latest
+   
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch }} # Corrected input reference
+
+
+      - name: Set Azure credentials based on environment
+        run: |
+          if [ "${{ github.event.inputs.environment }}" = "prod" ]; then
+            echo "ARM_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID_PROD }}" >> $GITHUB_ENV
+            echo "ARM_CLIENT_SECRET=${{ secrets.AZURE_CLIENT_SECRET_PROD }}" >> $GITHUB_ENV
+            echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID_PROD }}" >> $GITHUB_ENV
+            echo "ARM_TENANT_ID=${{ secrets.AZURE_TENANT_ID_PROD }}" >> $GITHUB_ENV
+          else
+            echo "ARM_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID_DEV }}" >> $GITHUB_ENV
+            echo "ARM_CLIENT_SECRET=${{ secrets.AZURE_CLIENT_SECRET_DEV }}" >> $GITHUB_ENV
+            echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID_DEV }}" >> $GITHUB_ENV
+            echo "ARM_TENANT_ID=${{ secrets.AZURE_TENANT_ID_DEV }}" >> $GITHUB_ENV
+          fi
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3.1.1
+        with:
+          terraform_version: 1.10.5
+
+      - name: Terraform Init
+        run: | 
+          cd environment/${{ github.event.inputs.version }}/${{ github.event.inputs.stage }}
+          echo "Terraform init running ......."
+
+      - name: Terraform Format
+        run: |
+          cd environment/${{ github.event.inputs.version }}/${{ github.event.inputs.stage }}
+          echo "Terraform fmt running ......."
+
+      - name: Terraform Validate
+        run: |
+          cd environment/${{ github.event.inputs.version }}/${{ github.event.inputs.stage }}
+          echo "Terraform validate running ......."
+
+      - name: Terraform Plan
+        run: |
+          cd environment/${{ github.event.inputs.version }}/${{ github.event.inputs.stage }}
+          echo "Terraform plan running ......."   
+
+      - name: print inputs
+        if: always()
+        env:
+          Infrastructure: ${{ github.event.inputs.version }}
+          Branch: ${{ github.ref_name }}
+        run: |
+          INFO="{
+              \"Infrastructure\":\"$Infrastructure\",
+              \"Git Branch\":\"$Branch\"  }"   
+          echo ${INFO}           
+          echo ::notice title="input parameters"::${INFO}
