@@ -7,7 +7,7 @@ on:
         description: "Select Git branch to checkout"
         required: true
         type: string
-        default: "feature/XYNI-241"
+        default: "aravind"
       environment:
         description: 'Select environment'
         required: true
